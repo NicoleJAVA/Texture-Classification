@@ -107,7 +107,6 @@ int main( int argc, char *argv[])
 		} //End-1-for
 		sigma = variance / (Size*Size);
 		T[imageLoop][maskLoop] = sigma;
-		Kmean[1][maskLoop] += sigma;
 		} // End-0-for   <<   Laws Mask Loop 
 	} // End-0-a-for   <<   Image Loop 
 	/******************************************************** b e g i n ***/
