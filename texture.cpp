@@ -7,6 +7,7 @@
 #define Size 64
 #define ThreshUp 30
 #define ThreshLow 20
+#define THRESH 0.5
 using namespace std;
 unsigned char afterErode4[Size][Size];
 unsigned char afterErode5[Size][Size];
@@ -62,6 +63,7 @@ int main( int argc, char *argv[])
 	}
 	for( i=0; i<=6; i++ ){
 		sprintf( picFileName,"sample1%d.raw", i );
+		//printf("\n%s ", picFileName );
 		file = fopen( picFileName, "rb" );
 		fread( Image[i+9], sizeof(unsigned char), Size*Size, file );
 		fclose(file);
@@ -78,38 +80,98 @@ int main( int argc, char *argv[])
 	int iOffset = 0, jOffset = 0; 	//	 the offset within the moving-window	
 	double M[Size][Size]={0};
 	double T[16][9];
+	double centroid[4][9];
+	
 	float  maxNeighbor;
 	double temp, featureSum, average, variance, sigma;
+	/********************************/
+	for(  i=0; i<9; i++ ){
+		for( j = 0; j<3; j++ ){
+			for( int k = 0; k<3; k++ ){
+			printf("%f  ", Laws[i][j][k]);
+		}
+		printf("\n");
+		}
+		printf("\n");
+		printf("%f.\n\n\n\n", LawsDenum[i]);
+	}
+	/********************/
+	double windowSum, imageSum;
 	for( imageLoop = 0; imageLoop < 16; imageLoop++ ){
 		for( maskLoop = 0; maskLoop < 9; maskLoop ++ ){
-		for( i = 2; i < Size-2; i++ ){
-			for( j = 2; j < Size-2; j++){
-
-				for( iOffset = -1; iOffset <= 1; iOffset++ ){
-					for( jOffset = -1; jOffset <= 1; jOffset++ ){
+			for( i = 2; i < Size-2; i++ ){
+				for( j = 2; j < Size-2; j++){
 					
-						temp += Image[imageLoop][i][j] * Laws[maskLoop][iOffset+1][jOffset+1];
-
-					}	//	End-4-for
-				}	//	End-3-for					
+					/* in the window */
+					for( iOffset = -1; iOffset <= 1; iOffset++ ){
+						for( jOffset = -1; jOffset <= 1; jOffset++ ){
+							windowSum += Image[imageLoop][i][j] * Laws[maskLoop][iOffset+1][jOffset+1];
+						}	//	End-4-for
+					}	//	End-3-for	
+					windowSum = windowSum / 	LawsDenum[maskLoop];	
+					M[i][j] = windowSum;
+					imageSum += windowSum;
+				}	//	End-2-for
+			}	//	End-1-for
+			// in the same mask 
+			/*******************************/
+			average = imageSum / (Size*Size);
+			for( i = 0; i < Size; i++ ){
+				for( j = 0; j < Size; j++){
+					variance += (M[i][j]-average) * (M[i][j]-average); 
+				} // End-2-for
+			} //End-1-for
+			sigma = sqrt( variance / (Size*Size) );
+			/***********************************/
 			
-				temp = temp / LawsDenum[maskLoop];
-				M[i][j] = temp;
-				featureSum += temp;
-			}	//	End-2-for
-		}	//	End-1-for
+			T[imageLoop][maskLoop] = sigma;
+			printf("\nimage %d mask %d : %f" ,imageLoop, maskLoop, T[imageLoop][maskLoop] );
+			
+			} // End-0-for   <<   Laws Mask Loop 
+			printf("\n");
+	
+		} // End-0-a-for   <<   Image Loop 
 		
-		average = featureSum / (Size*Size);
-		for( i = 0; i < Size; i++ ){
-			for( j = 0; j < Size; j++){
-				variance += (M[i][j]-average) * (M[i][j]-average); 
-			} // End-2-for
-		} //End-1-for
-		sigma = variance / (Size*Size);
-		T[imageLoop][maskLoop] = sigma;
-		Kmean[1][maskLoop] += sigma;
-		} // End-0-for   <<   Laws Mask Loop 
-	} // End-0-a-for   <<   Image Loop 
+		
+		//double centroid[4][9];
+
+			for( j=0; j<9; j++ ){
+				centroid[0][j] = T[0][j];
+			}
+			for( j=0; j<9; j++ ){
+				centroid[1][j] = T[3][j];
+			}
+			for( j=0; j<9; j++ ){
+				centroid[2][j] = T[4][j];
+			}
+			for( j=0; j<9; j++ ){
+				centroid[3][j] = T[10][j];
+			}
+		double distMin, distSum[4], dist;
+		int c, distMinIndex, textureGroup[16];
+		for( i=0; i<16; i++ ){
+			for( c=0; c<4; c++  ){
+				for( j=0; j<9; j++ ){
+					dist = ( T[i][j]-centroid[c][j]  )*( T[i][j]-centroid[c][j] );
+					distSum[c] += dist;
+				}
+				//printf("\n%f", distSum[c] );
+			}
+			printf("\n");
+			distMin = distSum[0];
+			distMinIndex = 0;
+			for( c=1; c<4; c++ ){
+				if( distMin > distSum[c] ){
+					//printf("%d:detect.   ", c);
+					distMin = distSum[c];
+					distMinIndex = c;
+				}
+			} // End min champion Loop 
+			textureGroup[i] = distMinIndex;
+			printf("image %d : group %d.\n\n\n", i, textureGroup[i] );
+		}
+		
+
 	/******************************************************** b e g i n ***/
 
 						/********************************************/
